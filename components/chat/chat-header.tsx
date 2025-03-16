@@ -1,20 +1,14 @@
-// /components/chat/chat-header.tsx
 "use client";
 
-import React from "react";
-import { useSelector } from "react-redux";
-import { RootState } from "@/lib/redux/store";
-import { Button } from "@/components/ui/button";
+import React, { useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, ArrowLeft, MoreVertical, Phone, Video } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, MoreVertical } from "lucide-react";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState } from "@/lib/redux/store";
+import { cn } from "@/lib/utils";
+import { onUserStatusUpdate } from "@/lib/socket";
+import { setSelectedChat } from "@/lib/redux/slices/chatSlice";
 
 interface ChatHeaderProps {
   onToggleSidebar: () => void;
@@ -27,96 +21,56 @@ export function ChatHeader({
   showSidebar,
   isDesktop,
 }: ChatHeaderProps) {
+  const dispatch = useDispatch();
   const { selectedChat } = useSelector((state: RootState) => state.chat);
+
+  useEffect(() => {
+    if (selectedChat?.type === "personal") {
+      onUserStatusUpdate(({ userId, status }) => {
+        if (userId === selectedChat.id) {
+          dispatch(setSelectedChat({ ...selectedChat, status }));
+        }
+      });
+    }
+  }, [selectedChat, dispatch]);
+
   if (!selectedChat) return null;
 
-  const isGroup = selectedChat.type === "group";
-  const onlineMembers =
-    selectedChat.members?.filter((m) => m.status === "online").length || 0;
-
-  // Determine status text and visibility
-  const statusText = isGroup
-    ? `${onlineMembers} online`
-    : selectedChat.status === "online"
-    ? "Online"
-    // : selectedChat.lastSeen
-    // ? `Last seen: ${new Date(selectedChat.lastSeen).toLocaleString()}`
-    : "Offline";
-
   return (
-    <div className="border-b p-3 flex items-center justify-between bg-background">
+    <div className="flex items-center justify-between p-4 border-b">
       <div className="flex items-center gap-3">
-        {!isDesktop && !showSidebar && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onToggleSidebar}
-            className="lg:hidden"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        )}
-        {isDesktop && (
+        {!isDesktop && (
           <Button variant="ghost" size="icon" onClick={onToggleSidebar}>
-            <Menu className="h-5 w-5" />
+            <ChevronLeft className="h-5 w-5" />
           </Button>
         )}
         <Avatar className="h-10 w-10">
-          <AvatarImage
-            src={selectedChat.avatar || ""}
-            alt={selectedChat.name}
-            className={selectedChat.avatar ? "" : "hidden"} // Hide if no avatar
-          />
+          <AvatarImage src={selectedChat.avatar} alt={selectedChat.name} />
           <AvatarFallback>
             {selectedChat.name.substring(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
         <div>
-          <div className="font-medium text-sm flex items-center gap-2">
-            {selectedChat.name}
-            {isGroup && (
-              <Badge variant="outline" className="text-xs">
-                {selectedChat.members?.length || 0} members
-              </Badge>
-            )}
-          </div>
-          <div
-            className={`text-xs ${
-              selectedChat.status === "online"
-                ? "text-green-500"
-                : "text-muted-foreground"
-            }`}
-          >
-            {statusText}
-          </div>
+          <h2 className="font-semibold">{selectedChat.name}</h2>
+          {selectedChat.type === "personal" && (
+            <p className="text-sm text-muted-foreground">
+              {selectedChat.status === "online"
+                ? "Online"
+                : `Last seen: ${new Date(
+                    selectedChat.lastSeen
+                  ).toLocaleString()}`}
+            </p>
+          )}
+          {selectedChat.type === "group" && (
+            <p className="text-sm text-muted-foreground">
+              {selectedChat.members.length} members
+            </p>
+          )}
         </div>
       </div>
-
-      <div className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" className="rounded-full">
-          <Phone className="h-5 w-5" />
-        </Button>
-        <Button variant="ghost" size="icon" className="rounded-full">
-          <Video className="h-5 w-5" />
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <MoreVertical className="h-5 w-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>View profile</DropdownMenuItem>
-            <DropdownMenuItem>Search in conversation</DropdownMenuItem>
-            <DropdownMenuItem>Notification settings</DropdownMenuItem>
-            {isGroup && <DropdownMenuItem>Group settings</DropdownMenuItem>}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
-              {isGroup ? "Leave group" : "Block contact"}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      <Button variant="ghost" size="icon">
+        <MoreVertical className="h-5 w-5" />
+      </Button>
     </div>
   );
 }

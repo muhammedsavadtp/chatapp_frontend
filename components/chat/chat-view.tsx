@@ -41,13 +41,14 @@ export function ChatView() {
   );
   const { profile } = useSelector((state: RootState) => state.user);
   const [newMessage, setNewMessage] = useState("");
-  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [typingUsers, setTypingUsers] = useState<
+    { id: string; name: string }[]
+  >([]);
   const messageEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (selectedChat) {
-      // Join group room if it's a group chat
       if (selectedChat.type === "group") {
         emitJoinGroup(selectedChat.id);
         console.log(`Joined group room: ${selectedChat.id}`);
@@ -60,7 +61,10 @@ export function ChatView() {
             ? data
             : data.messages || [];
           dispatch(setMessages(fetchedMessages));
-          if (selectedChat.type === "personal") {
+          if (
+            selectedChat.type === "personal" &&
+            fetchedMessages.some((msg) => !msg.read)
+          ) {
             await markMessagesAsRead(selectedChat.id);
             dispatch(markMessagesRead(selectedChat.id));
           }
@@ -80,6 +84,10 @@ export function ChatView() {
               msg.recipient === selectedChat.id))
         ) {
           dispatch(addMessage(msg));
+          if (!msg.read) {
+            markMessagesAsRead(selectedChat.id);
+            dispatch(markMessagesRead(selectedChat.id));
+          }
         }
       };
 
@@ -107,25 +115,33 @@ export function ChatView() {
 
       onUserTyping(({ senderId, groupId }) => {
         if (senderId !== profile?.id) {
+          const senderName =
+            selectedChat.members?.find((m) => m._id === senderId)?.name ||
+            "Unknown";
           if (selectedChat.type === "group" && groupId === selectedChat.id) {
-            setTypingUsers((prev) => [...new Set([...prev, senderId])]);
+            setTypingUsers((prev) => {
+              if (!prev.some((user) => user.id === senderId)) {
+                return [...prev, { id: senderId, name: senderName }];
+              }
+              return prev;
+            });
           } else if (
             selectedChat.type === "personal" &&
             senderId === selectedChat.id
           ) {
-            setTypingUsers((prev) => [...new Set([...prev, senderId])]);
+            setTypingUsers([{ id: senderId, name: selectedChat.name }]);
           }
         }
       });
 
       onUserStoppedTyping(({ senderId, groupId }) => {
         if (selectedChat.type === "group" && groupId === selectedChat.id) {
-          setTypingUsers((prev) => prev.filter((id) => id !== senderId));
+          setTypingUsers((prev) => prev.filter((user) => user.id !== senderId));
         } else if (
           selectedChat.type === "personal" &&
           senderId === selectedChat.id
         ) {
-          setTypingUsers((prev) => prev.filter((id) => id !== senderId));
+          setTypingUsers([]);
         }
       });
 
@@ -254,6 +270,11 @@ export function ChatView() {
                       </Avatar>
                     )}
                     <div className="max-w-[75%] flex flex-col">
+                      {selectedChat.type === "group" && !isCurrentUser && (
+                        <div className="text-xs text-muted-foreground">
+                          {senderName}
+                        </div>
+                      )}
                       <div
                         className={cn(
                           "rounded-2xl px-4 py-2",
@@ -323,8 +344,10 @@ export function ChatView() {
         {typingUsers.length > 0 && (
           <div className="text-sm text-muted-foreground italic">
             {selectedChat.type === "group"
-              ? "Someone is typing..."
-              : `${selectedChat.name} is typing...`}
+              ? `${typingUsers.map((user) => user.name).join(", ")} ${
+                  typingUsers.length > 1 ? "are" : "is"
+                } typing...`
+              : `${typingUsers[0]?.name} is typing...`}
           </div>
         )}
         <div ref={messageEndRef} />

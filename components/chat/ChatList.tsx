@@ -95,22 +95,7 @@ interface ChatItemProps {
 }
 
 function ChatItem({ chat, onSelect }: ChatItemProps) {
-  // Format time (could be expanded to show relative time)
-  // const formatTime = (time: string) => {
-  //   const date = new Date(time);
-  //   const now = new Date();
-  //   const isToday = date.toDateString() === now.toDateString();
-
-  //   if (isToday) {
-  //     return date.toLocaleTimeString([], {
-  //       hour: "2-digit",
-  //       minute: "2-digit",
-  //     });
-  //   }
-
-  //   return date.toLocaleDateString([], { month: "short", day: "numeric" });
-  // };
-
+ console.log("chat ",chat );
   return (
     <div
       className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
@@ -125,9 +110,9 @@ function ChatItem({ chat, onSelect }: ChatItemProps) {
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-baseline">
           <span className="font-medium text-sm truncate">{chat.name}</span>
-          <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+          {chat.status !== "group" && <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
             {formatTime(chat.lastSeen)}
-          </span>
+          </span>}
         </div>
         <div className="text-sm text-muted-foreground truncate">
           {chat.lastMessage}

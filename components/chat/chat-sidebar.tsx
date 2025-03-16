@@ -1,4 +1,3 @@
-// /components/chat/chat-sidebar.tsx
 "use client";
 
 import React from "react";
@@ -13,20 +12,36 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useDispatch } from "react-redux";
+import { markMessagesAsRead } from "@/lib/api/chatApi";
+import { markMessagesRead } from "@/lib/redux/slices/chatSlice";
 
 interface ChatSidebarProps {
   onChatSelect: (chat: any) => void;
 }
 
 export function ChatSidebar({ onChatSelect }: ChatSidebarProps) {
+  const dispatch = useDispatch();
+
+  const handleChatSelect = async (chat: any) => {
+    onChatSelect(chat);
+    if (chat.type === "personal" && chat.unread > 0) {
+      try {
+        await markMessagesAsRead(chat.id);
+        dispatch(markMessagesRead(chat.id));
+      } catch (error) {
+        console.error("Error marking messages as read:", error);
+      }
+    }
+  };
+
   const handleAddAction = (type: "add-contact" | "create-group") => {
-    // This would be handled based on your application's requirements
     console.log(`Action: ${type}`);
   };
 
   return (
     <div className="flex flex-col h-full border-r">
-      {/* <div className="p-4 flex items-center justify-between">
+      <div className="p-4 flex items-center justify-between">
         <h2 className="text-xl font-bold">Chats</h2>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -45,12 +60,15 @@ export function ChatSidebar({ onChatSelect }: ChatSidebarProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div> */}
+      </div>
 
       <Separator />
 
       <div className="flex-1 overflow-hidden">
-        <ChatList onChatSelect={onChatSelect} onAddAction={handleAddAction} />
+        <ChatList
+          onChatSelect={handleChatSelect}
+          onAddAction={handleAddAction}
+        />
       </div>
 
       <Separator />
