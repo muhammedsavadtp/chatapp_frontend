@@ -77,11 +77,11 @@ export default function AuthPage() {
       dispatch(setCredentials({ user: data.user, token: data.token }));
       setStorageValue("auth_token", data.token, { expiresInDays: 7 });
 
-      toast("Login successful");
+      toast.success("Login successful");
       router.push("/");
     } catch (err: any) {
     
-      toast("Login failed", {
+      toast.error("Login failed", {
         description: err.message || "Something went wrong",
       });
     }
@@ -92,10 +92,10 @@ export default function AuthPage() {
       const { confirmPassword, ...registerData } = values;
       const response = await register(registerData);
 
-      toast("Registration successful");
+      toast.success("Registration successful");
       setTimeout(() => setActiveTab("login"), 2000);
     } catch (err: any) {
-      toast("Registration failed", {
+      toast.error("Registration failed", {
         description: err.message || "Something went wrong",
       });
     }

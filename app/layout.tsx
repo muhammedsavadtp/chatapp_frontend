@@ -33,7 +33,7 @@ export default function RootLayout({
         <Providers>
           <AuthWrapper>{children}</AuthWrapper>
         </Providers>
-        <Toaster />
+        <Toaster position="top-center" />
       </body>
     </html>
   );

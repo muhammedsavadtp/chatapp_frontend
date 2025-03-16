@@ -41,26 +41,7 @@ export function ChatSidebar({ onChatSelect }: ChatSidebarProps) {
 
   return (
     <div className="flex flex-col h-full border-r">
-      <div className="p-4 flex items-center justify-between">
-        <h2 className="text-xl font-bold">Chats</h2>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <Plus className="h-5 w-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => handleAddAction("add-contact")}>
-              <UserPlus className="mr-2 h-4 w-4" />
-              <span>Add Contact</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleAddAction("create-group")}>
-              <Users className="mr-2 h-4 w-4" />
-              <span>Create Group</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+     
 
       <Separator />
 
