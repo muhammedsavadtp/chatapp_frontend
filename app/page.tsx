@@ -1,4 +1,3 @@
-// /app/chat/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -36,30 +35,27 @@ export default function ChatPage() {
     const fetchInitialData = async () => {
       try {
         const userChats = await getUserChats();
-        console.log("Fetched user chats:", userChats);
-        dispatch(setChats(userChats));
 
+        console.log("user chats ", userChats);
+        dispatch(setChats(userChats));
         const userProfile = await getProfile();
-        // console.log("userProfile in page", userProfile);
         dispatch(setProfile(userProfile));
 
         if (userProfile?.id) {
           initializeSocket(userProfile.id);
           onUserStatusUpdate(({ userId, status }) => {
             dispatch(updateChatStatus({ userId, status }));
+            if (selectedChat?.id === userId) {
+              dispatch(setSelectedChat({ ...selectedChat, status }));
+            }
           });
-
-          // Set first chat as default if none selected
-          if (userChats.length > 0 && !selectedChat) {
-            dispatch(setSelectedChat(userChats[0]));
-          }
         }
       } catch (error) {
         console.error("Error fetching initial data:", error);
       }
     };
     fetchInitialData();
-  }, [dispatch]);
+  }, [dispatch, selectedChat]);
 
   const handleChatSelect = (chat: any) => {
     dispatch(setSelectedChat(chat));
@@ -96,10 +92,7 @@ export default function ChatPage() {
               <Plus className="h-5 w-5" />
             </Button>
           </div>
-          <ChatSidebar
-            onChatSelect={handleChatSelect}
-            // onAddAction={handleAddAction}
-          />
+          <ChatSidebar onChatSelect={handleChatSelect} />
         </div>
       )}
 

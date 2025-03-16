@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { formatTime } from "@/lib/utils/formateDate";
 
 interface ChatListProps {
   onChatSelect: (chat: any) => void;
@@ -95,20 +96,20 @@ interface ChatItemProps {
 
 function ChatItem({ chat, onSelect }: ChatItemProps) {
   // Format time (could be expanded to show relative time)
-  const formatTime = (time: string) => {
-    const date = new Date(time);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
+  // const formatTime = (time: string) => {
+  //   const date = new Date(time);
+  //   const now = new Date();
+  //   const isToday = date.toDateString() === now.toDateString();
 
-    if (isToday) {
-      return date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    }
+  //   if (isToday) {
+  //     return date.toLocaleTimeString([], {
+  //       hour: "2-digit",
+  //       minute: "2-digit",
+  //     });
+  //   }
 
-    return date.toLocaleDateString([], { month: "short", day: "numeric" });
-  };
+  //   return date.toLocaleDateString([], { month: "short", day: "numeric" });
+  // };
 
   return (
     <div
@@ -125,7 +126,7 @@ function ChatItem({ chat, onSelect }: ChatItemProps) {
         <div className="flex justify-between items-baseline">
           <span className="font-medium text-sm truncate">{chat.name}</span>
           <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
-            {formatTime(chat.time)}
+            {formatTime(chat.lastSeen)}
           </span>
         </div>
         <div className="text-sm text-muted-foreground truncate">

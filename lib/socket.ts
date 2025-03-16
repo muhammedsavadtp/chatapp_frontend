@@ -32,13 +32,6 @@ export const emitSendMessage = (message: {
   socket.emit("sendMessage", message);
 };
 
-// export const emitSendGroupMessage = (message: {
-//   groupId: string;
-//   content: string;
-//   fileUrl?: string;
-// }) => {
-//   socket.emit("sendGroupMessage", message);
-// };
 
 // /lib/socket.ts (excerpt)
 export const emitSendGroupMessage = (data: { groupId: string; content: string; fileUrl?: string }) => {
