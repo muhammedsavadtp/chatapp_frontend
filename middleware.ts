@@ -8,7 +8,7 @@ export function middleware(request: NextRequest) {
   const publicPaths = ["/auth"];
   const isPublicPath = publicPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
-  );
+  ); 
 
   if (!token && !isPublicPath) {
     return NextResponse.redirect(new URL("/auth", request.url));

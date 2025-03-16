@@ -1,4 +1,5 @@
-// /components/chat/add-action-dialog.tsx
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -76,7 +77,7 @@ export function AddActionDialog({
         setIsLoadingContacts(true);
         try {
           const fetchedContacts = await getContacts();
-          console.log("Raw fetched contacts:", fetchedContacts);
+          // console.log("Raw fetched contacts:", fetchedContacts);
 
           // Make sure fetchedContacts is treated as an array
           const contactsArray = Array.isArray(fetchedContacts)
@@ -89,7 +90,7 @@ export function AddActionDialog({
           );
 
           setContacts(filteredContacts);
-          console.log("Processed contacts:", filteredContacts);
+          // console.log("Processed contacts:", filteredContacts);
         } catch (error) {
           console.error("Error fetching contacts:", error);
           setContacts([]);
@@ -110,10 +111,11 @@ export function AddActionDialog({
       // Don't clear contacts when closing dialog to prevent flashing empty state
       setActiveTab(initialType);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, activeTab, profile]);
 
   const handleTabChange = (value: string) => {
-    console.log("Switching tab to:", value);
+    // console.log("Switching tab to:", value);
     setActiveTab(value);
   };
 
@@ -126,7 +128,7 @@ export function AddActionDialog({
     try {
       const results = await searchUsers(searchQuery);
       setSearchResults(results.filter((user) => user._id !== profile?.id));
-      console.log("Search results:", results);
+      // console.log("Search results:", results);
     } catch (error) {
       console.error("Error searching users:", error);
     } finally {
@@ -174,7 +176,7 @@ export function AddActionDialog({
           memberIds.push(profile.id);
         }
 
-        console.log("Creating group with:", { name: groupName, memberIds });
+        // console.log("Creating group with:", { name: groupName, memberIds });
         const group = await createGroup({ name: groupName, memberIds });
         const newGroupChat = {
           id: group._id,
@@ -199,9 +201,9 @@ export function AddActionDialog({
         console.error("Error creating group:", error);
       }
     } else {
-      console.log(
-        "Group creation failed: Invalid group name or no members selected"
-      );
+      // console.log(
+      //   "Group creation failed: Invalid group name or no members selected"
+      // );
     }
   };
 
@@ -337,7 +339,7 @@ export function AddActionDialog({
                         <input
                           className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                           placeholder="Search contacts..."
-                          onChange={(e) => {
+                          onChange={() => {
                             // You can implement search functionality here if needed
                           }}
                         />

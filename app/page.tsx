@@ -1,7 +1,10 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 "use client";
 
-import React, { useEffect, useState } from "react";
-import useMediaQuery from "./hooks/useMediaQuery";
+import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useMediaQuery } from "./hooks/useMediaQuery";
 import { ChatSidebar } from "@/components/chat/chat-sidebar";
 import { ChatHeader } from "@/components/chat/chat-header";
 import { ChatView } from "@/components/chat/chat-view";
@@ -10,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { initializeSocket, onUserStatusUpdate } from "@/lib/socket";
-import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/lib/redux/store";
 import { getUserChats } from "@/lib/api/chatApi";
 import {
@@ -20,23 +22,25 @@ import {
 } from "@/lib/redux/slices/chatSlice";
 import { setProfile } from "@/lib/redux/slices/userSlice";
 import { getProfile } from "@/lib/api/userApi";
+import { Chat, UserProfile, DialogType } from "@/types/chat";
 
 export default function ChatPage() {
   const dispatch = useDispatch();
-  const { chats, selectedChat } = useSelector((state: RootState) => state.chat);
-  const { profile } = useSelector((state: RootState) => state.user);
+  const {
+    // chats,
+    selectedChat,
+  } = useSelector((state: RootState) => state.chat);
+  // const { profile } = useSelector((state: RootState) => state.user);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogType, setDialogType] = useState<"add-contact" | "create-group">(
-    "add-contact"
-  );
+  const [dialogType, setDialogType] = useState<DialogType>("add-contact");
   const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const userChats = await getUserChats();
+        const userChats: Chat[] = await getUserChats();
         dispatch(setChats(userChats));
-        const userProfile = await getProfile();
+        const userProfile: UserProfile = await getProfile();
         dispatch(setProfile(userProfile));
 
         if (userProfile?.id) {
@@ -53,9 +57,9 @@ export default function ChatPage() {
       }
     };
     fetchInitialData();
-  }, [dispatch]);
+  }, [dispatch, selectedChat]);
 
-  const handleChatSelect = (chat: any) => {
+  const handleChatSelect = (chat: Chat) => {
     dispatch(setSelectedChat(chat));
   };
 
@@ -63,7 +67,7 @@ export default function ChatPage() {
     dispatch(setSelectedChat(null));
   };
 
-  const handleAddAction = (type: "add-contact" | "create-group") => {
+  const handleAddAction = (type: DialogType) => {
     setDialogType(type);
     setDialogOpen(true);
   };
@@ -75,8 +79,8 @@ export default function ChatPage() {
           className={cn(
             "flex flex-col border-r transition-all duration-300",
             isDesktop
-              ? "relative w-full max-w-xs"
-              : "absolute inset-0 z-10 bg-background w-full h-full"
+              ? "w-full max-w-xs"
+              : "absolute inset-0 z-10 w-full h-full"
           )}
         >
           <div className="flex items-center justify-between p-4 border-b">

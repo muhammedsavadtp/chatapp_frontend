@@ -2,13 +2,18 @@
 
 import { useState } from "react";
 import { useDispatch } from "react-redux";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { setCredentials } from "@/lib/redux/slices/authSlice";
 import { login, register } from "@/lib/api/authApi";
 import { setStorageValue } from "@/lib/utils/storage";
-import { useRouter } from "next/navigation";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";    
+import {
+  LoginFormValues,
+  RegisterFormValues,
+  loginSchema,
+  registerSchema,
+} from "@/types/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,42 +28,16 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, UserCircle, Lock, User } from "lucide-react";
 import { toast } from "sonner";
-// Form validation schemas
-const loginSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
-const registerSchema = z
-  .object({
-    username: z.string().min(3, "Username must be at least 3 characters"),
-    name: z.string().min(2, "Name must be at least 2 characters"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-    confirmPassword: z
-      .string()
-      .min(6, "Password must be at least 6 characters"),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  });
-
-type LoginFormValues = z.infer<typeof loginSchema>;
-type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [activeTab, setActiveTab] = useState("login");
+  const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const dispatch = useDispatch();
   const router = useRouter();
 
-
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      username: "",
-      password: "",
-    },
+    defaultValues: { username: "", password: "" },
   });
 
   const registerForm = useForm<RegisterFormValues>({
@@ -76,34 +55,32 @@ export default function AuthPage() {
       const data = await login(values);
       dispatch(setCredentials({ user: data.user, token: data.token }));
       setStorageValue("auth_token", data.token, { expiresInDays: 7 });
-
       toast.success("Login successful");
       router.push("/");
-    } catch (err: any) {
-    
+    } catch (error) {
       toast.error("Login failed", {
-        description: err.message || "Something went wrong",
+        description:
+          error instanceof Error ? error.message : "Something went wrong",
       });
     }
   };
 
   const handleRegister = async (values: RegisterFormValues) => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { confirmPassword, ...registerData } = values;
-      const response = await register(registerData);
-
+      await register(registerData);
       toast.success("Registration successful");
       setTimeout(() => setActiveTab("login"), 2000);
-    } catch (err: any) {
+    } catch (error) {
       toast.error("Registration failed", {
-        description: err.message || "Something went wrong",
+        description:
+          error instanceof Error ? error.message : "Something went wrong",
       });
     }
   };
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
+  const togglePasswordVisibility = () => setShowPassword((prev) => !prev);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-100 p-4">
@@ -119,8 +96,9 @@ export default function AuthPage() {
         <CardContent>
           <Tabs
             value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full"
+            onValueChange={(value) =>
+              setActiveTab(value as "login" | "register")
+            }
           >
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="login">Login</TabsTrigger>
@@ -142,12 +120,12 @@ export default function AuthPage() {
                       className="pl-10"
                       {...loginForm.register("username")}
                     />
+                    {loginForm.formState.errors.username && (
+                      <p className="text-sm text-red-500">
+                        {loginForm.formState.errors.username.message}
+                      </p>
+                    )}
                   </div>
-                  {loginForm.formState.errors.username && (
-                    <p className="text-sm text-red-500">
-                      {loginForm.formState.errors.username.message}
-                    </p>
-                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -205,12 +183,12 @@ export default function AuthPage() {
                       className="pl-10"
                       {...registerForm.register("username")}
                     />
+                    {registerForm.formState.errors.username && (
+                      <p className="text-sm text-red-500">
+                        {registerForm.formState.errors.username.message}
+                      </p>
+                    )}
                   </div>
-                  {registerForm.formState.errors.username && (
-                    <p className="text-sm text-red-500">
-                      {registerForm.formState.errors.username.message}
-                    </p>
-                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -223,12 +201,12 @@ export default function AuthPage() {
                       className="pl-10"
                       {...registerForm.register("name")}
                     />
+                    {registerForm.formState.errors.name && (
+                      <p className="text-sm text-red-500">
+                        {registerForm.formState.errors.name.message}
+                      </p>
+                    )}
                   </div>
-                  {registerForm.formState.errors.name && (
-                    <p className="text-sm text-red-500">
-                      {registerForm.formState.errors.name.message}
-                    </p>
-                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -274,12 +252,12 @@ export default function AuthPage() {
                       className="pl-10"
                       {...registerForm.register("confirmPassword")}
                     />
+                    {registerForm.formState.errors.confirmPassword && (
+                      <p className="text-sm text-red-500">
+                        {registerForm.formState.errors.confirmPassword.message}
+                      </p>
+                    )}
                   </div>
-                  {registerForm.formState.errors.confirmPassword && (
-                    <p className="text-sm text-red-500">
-                      {registerForm.formState.errors.confirmPassword.message}
-                    </p>
-                  )}
                 </div>
 
                 <Button
@@ -295,32 +273,21 @@ export default function AuthPage() {
             </TabsContent>
           </Tabs>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <div className="text-sm text-center text-gray-500">
-            {activeTab === "login" ? (
-              <p>
-                Don't have an account?{" "}
-                <button
-                  type="button"
-                  className="text-blue-600 hover:underline"
-                  onClick={() => setActiveTab("register")}
-                >
-                  Create one
-                </button>
-              </p>
-            ) : (
-              <p>
-                Already have an account?{" "}
-                <button
-                  type="button"
-                  className="text-blue-600 hover:underline"
-                  onClick={() => setActiveTab("login")}
-                >
-                  Login
-                </button>
-              </p>
-            )}
-          </div>
+        <CardFooter className="flex justify-center">
+          <p className="text-sm text-gray-500">
+            {activeTab === "login"
+              ? "Don't have an account? "
+              : "Already have an account? "}
+            <button
+              type="button"
+              className="text-blue-600 hover:underline"
+              onClick={() =>
+                setActiveTab(activeTab === "login" ? "register" : "login")
+              }
+            >
+              {activeTab === "login" ? "Create one" : "Login"}
+            </button>
+          </p>
         </CardFooter>
       </Card>
     </div>

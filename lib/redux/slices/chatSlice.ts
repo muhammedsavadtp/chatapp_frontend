@@ -22,7 +22,7 @@ interface Chat {
   time: string;
   unread: number;
   type: "personal" | "group";
-  members?: any[];
+  members?: unknown[];
   admins?: string[];
   createdBy?: string;
 }
