@@ -1,4 +1,3 @@
-// /lib/socket.ts
 import { io } from "socket.io-client";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -24,6 +23,10 @@ export const initializeSocket = (userId: string) => {
   socket.emit("join", userId);
 };
 
+export const emitJoinGroup = (groupId: string) => {
+  socket.emit("joinGroup", groupId);
+};
+
 export const emitSendMessage = (message: {
   recipientId: string;
   content: string;
@@ -32,14 +35,12 @@ export const emitSendMessage = (message: {
   socket.emit("sendMessage", message);
 };
 
-
-// /lib/socket.ts (excerpt)
-export const emitSendGroupMessage = (data: { groupId: string; content: string; fileUrl?: string }) => {
+export const emitSendGroupMessage = (data: {
+  groupId: string;
+  content: string;
+  fileUrl?: string;
+}) => {
   socket.emit("sendGroupMessage", data);
-};
-
-export const onGroupMessageReceived = (callback: (msg: any) => void) => {
-  socket.on("receiveGroupMessage", callback);
 };
 
 export const emitTyping = (data: {
@@ -63,18 +64,19 @@ export const onUserStatusUpdate = (
 export const onMessageReceived = (callback: (message: any) => void) =>
   socket.on("receiveMessage", callback);
 
-// export const onGroupMessageReceived = (callback: (message: any) => void) =>
-//   socket.on("receiveGroupMessage", callback);
+export const onGroupMessageReceived = (callback: (message: any) => void) =>
+  socket.on("receiveGroupMessage", callback);
 
 export const onMessagesRead = (
   callback: (data: { recipientId: string; messages: any[] }) => void
 ) => socket.on("messagesRead", callback);
 
-export const onUserTyping = (callback: (data: { senderId: string }) => void) =>
-  socket.on("userTyping", callback);
+export const onUserTyping = (
+  callback: (data: { senderId: string; groupId?: string }) => void
+) => socket.on("userTyping", callback);
 
 export const onUserStoppedTyping = (
-  callback: (data: { senderId: string }) => void
+  callback: (data: { senderId: string; groupId?: string }) => void
 ) => socket.on("userStoppedTyping", callback);
 
 export default socket;

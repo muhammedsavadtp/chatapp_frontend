@@ -1,6 +1,3 @@
-
-
-// /components/chat/chat-view.tsx
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -22,7 +19,7 @@ import socket, {
   onUserTyping,
   onUserStoppedTyping,
   onMessagesRead,
-
+  emitJoinGroup,
 } from "@/lib/socket";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -36,7 +33,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getJoinedGroups } from "@/lib/api/groupApi";
 
 export function ChatView() {
   const dispatch = useDispatch();
@@ -49,35 +45,21 @@ export function ChatView() {
   const messageEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  
   useEffect(() => {
     if (selectedChat) {
+      // Join group room if it's a group chat
       if (selectedChat.type === "group") {
-        getJoinedGroups(selectedChat.id);
+        emitJoinGroup(selectedChat.id);
         console.log(`Joined group room: ${selectedChat.id}`);
       }
 
       const fetchMessages = async () => {
         try {
           const data = await getMessages(selectedChat.id);
-          console.log("Fetched messages data:", data);
           const fetchedMessages = Array.isArray(data)
             ? data
             : data.messages || [];
-          const filteredMessages = fetchedMessages.filter((msg) =>
-            selectedChat.type === "group"
-              ? msg.group === selectedChat.id
-              : (msg.recipient === selectedChat.id ||
-                  msg.sender._id === selectedChat.id) &&
-                !msg.group
-          );
-          console.log(
-            "Filtered messages for",
-            selectedChat.type,
-            "chat:",
-            filteredMessages
-          );
-          dispatch(setMessages(filteredMessages));
+          dispatch(setMessages(fetchedMessages));
           if (selectedChat.type === "personal") {
             await markMessagesAsRead(selectedChat.id);
             dispatch(markMessagesRead(selectedChat.id));
@@ -90,7 +72,6 @@ export function ChatView() {
       fetchMessages();
 
       const messageListener = (msg) => {
-        console.log("Received personal message:", msg);
         if (
           selectedChat.type === "personal" &&
           ((msg.recipient === profile?.id &&
@@ -103,7 +84,6 @@ export function ChatView() {
       };
 
       const groupMessageListener = (msg) => {
-        console.log("Received group message:", msg);
         if (selectedChat.type === "group" && msg.group === selectedChat.id) {
           dispatch(addMessage(msg));
         }
@@ -113,7 +93,6 @@ export function ChatView() {
         recipientId,
         messages: updatedMessages,
       }) => {
-        console.log("Received messagesRead:", { recipientId, updatedMessages });
         if (
           selectedChat.type === "personal" &&
           recipientId === selectedChat.id
@@ -158,60 +137,51 @@ export function ChatView() {
         socket.off("userStoppedTyping");
       };
     }
-  }, [selectedChat?.status, dispatch, profile?.id]);
+  }, [selectedChat, dispatch, profile?.id]);
 
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const handleSendMessage = () => {
+    if (!newMessage.trim() || !selectedChat || !profile) return;
 
-const handleSendMessage = () => {
-  if (!newMessage.trim() || !selectedChat || !profile) return;
+    const messagePayload = {
+      [selectedChat.type === "group" ? "groupId" : "recipientId"]:
+        selectedChat.id,
+      content: newMessage,
+    };
 
-  const messagePayload = {
-    [selectedChat.type === "group" ? "groupId" : "recipientId"]:
-      selectedChat.id,
-    content: newMessage,
+    try {
+      if (selectedChat.type === "group") {
+        emitSendGroupMessage(messagePayload);
+      } else {
+        emitSendMessage(messagePayload);
+      }
+      setNewMessage("");
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        emitStopTyping({
+          [selectedChat.type === "group" ? "groupId" : "recipientId"]:
+            selectedChat.id,
+        });
+      }
+    } catch (error) {
+      console.error("Error emitting message:", error);
+    }
   };
 
-  try {
-    if (selectedChat.type === "group") {
-      emitSendGroupMessage(messagePayload);
-      console.log("Emitted group message:", messagePayload);
-    } else {
-      emitSendMessage(messagePayload);
-      console.log("Emitted personal message:", messagePayload);
-    }
-    setNewMessage("");
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-      emitStopTyping({
-        [selectedChat.type === "group" ? "groupId" : "recipientId"]:
-          selectedChat.id,
-      });
-    }
-  } catch (error) {
-    console.error("Error emitting message:", error);
-  }
-};
-
-const groupMessageListener = (msg) => {
-  console.log("Received group message:", msg);
-  if (selectedChat.type === "group" && msg.group === selectedChat.id) {
-    dispatch(addMessage(msg));
-  }
-};
-
-onGroupMessageReceived(groupMessageListener);
   const handleTyping = () => {
     if (!selectedChat) return;
     emitTyping({
-      [selectedChat.type === "group" ? "groupId" : "recipientId"]: selectedChat.id,
+      [selectedChat.type === "group" ? "groupId" : "recipientId"]:
+        selectedChat.id,
     });
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       emitStopTyping({
-        [selectedChat.type === "group" ? "groupId" : "recipientId"]: selectedChat.id,
+        [selectedChat.type === "group" ? "groupId" : "recipientId"]:
+          selectedChat.id,
       });
     }, 2000);
   };
@@ -223,16 +193,15 @@ onGroupMessageReceived(groupMessageListener);
     try {
       const { fileUrl } = await uploadFile(file);
       const messagePayload = {
-        [selectedChat.type === "group" ? "groupId" : "recipientId"]: selectedChat.id,
+        [selectedChat.type === "group" ? "groupId" : "recipientId"]:
+          selectedChat.id,
         content: "",
         fileUrl,
       };
       if (selectedChat.type === "group") {
         emitSendGroupMessage(messagePayload);
-        console.log("Emitted group file message:", messagePayload);
       } else {
         emitSendMessage(messagePayload);
-        console.log("Emitted personal file message:", messagePayload);
       }
     } catch (error) {
       console.error("Error uploading file:", error);
@@ -248,8 +217,6 @@ onGroupMessageReceived(groupMessageListener);
       if (!groupedMessages[date]) groupedMessages[date] = [];
       groupedMessages[date].push(message);
     });
-  } else {
-    console.error("Messages is not an array:", messages);
   }
 
   return (

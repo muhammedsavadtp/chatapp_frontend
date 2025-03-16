@@ -35,8 +35,6 @@ export default function ChatPage() {
     const fetchInitialData = async () => {
       try {
         const userChats = await getUserChats();
-
-        console.log("user chats ", userChats);
         dispatch(setChats(userChats));
         const userProfile = await getProfile();
         dispatch(setProfile(userProfile));
@@ -55,7 +53,7 @@ export default function ChatPage() {
       }
     };
     fetchInitialData();
-  }, [dispatch, selectedChat]);
+  }, [dispatch]);
 
   const handleChatSelect = (chat: any) => {
     dispatch(setSelectedChat(chat));
@@ -120,7 +118,7 @@ export default function ChatPage() {
               </p>
             </div>
           )}
-        </div> 
+        </div>
       )}
 
       <AddActionDialog
