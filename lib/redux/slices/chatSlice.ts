@@ -23,6 +23,8 @@ interface Chat {
   unread: number;
   type: "personal" | "group";
   members?: any[];
+  admins?: string[];
+  createdBy?: string;
 }
 
 interface ChatState {
@@ -92,6 +94,12 @@ const chatSlice = createSlice({
         }
       }
     },
+    addChat(state, action: PayloadAction<Chat>) {
+      // Prevent duplicate chats by checking if the chat already exists
+      if (!state.chats.some((chat) => chat.id === action.payload.id)) {
+        state.chats.push(action.payload);
+      }
+    },
   },
 });
 
@@ -103,6 +111,7 @@ export const {
   markMessagesRead,
   updateChatStatus,
   updateChatLastMessage,
+  addChat,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;
