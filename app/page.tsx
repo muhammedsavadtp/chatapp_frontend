@@ -120,7 +120,7 @@ export default function ChatPage() {
               </p>
             </div>
           )}
-        </div>
+        </div> 
       )}
 
       <AddActionDialog
