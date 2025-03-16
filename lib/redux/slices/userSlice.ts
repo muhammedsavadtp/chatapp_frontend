@@ -1,4 +1,4 @@
-// /lib/redux/userSlice.ts
+
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { UserProfile, UserSearchResult } from "@/lib/api/userApi";
 
@@ -7,7 +7,7 @@ interface UserState {
   contacts: UserSearchResult[];
 }
 
-const initialState: UserState = {
+const initialState: UserState = { 
   profile: null,
   contacts: [],
 };

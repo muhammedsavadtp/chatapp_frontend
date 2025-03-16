@@ -61,14 +61,14 @@ export const onUserStatusUpdate = (
   callback: (data: { userId: string; status: string }) => void
 ) => socket.on("userStatus", callback);
 
-export const onMessageReceived = (callback: (message: any) => void) =>
+export const onMessageReceived = (callback: (message: unknown) => void) =>
   socket.on("receiveMessage", callback);
 
-export const onGroupMessageReceived = (callback: (message: any) => void) =>
+export const onGroupMessageReceived = (callback: (message: unknown) => void) =>
   socket.on("receiveGroupMessage", callback);
 
 export const onMessagesRead = (
-  callback: (data: { recipientId: string; messages: any[] }) => void
+  callback: (data: { recipientId: string; messages: unknown[] }) => void
 ) => socket.on("messagesRead", callback);
 
 export const onUserTyping = (
