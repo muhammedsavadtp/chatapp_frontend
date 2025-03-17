@@ -1,4 +1,4 @@
-// /lib/api/authApi.ts
+
 import axiosInstance from "./axiosInstance";
 
 export const register = async (data: {
