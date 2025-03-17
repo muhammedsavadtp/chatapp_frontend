@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Chat App - Frontend
 
-## Getting Started
+This is the frontend of the Chat Application built with Next.js and React. The application allows users to chat in real-time, manage contacts, and create groups with admin privileges.
 
-First, run the development server:
+## Features
 
+- User authentication (Sign Up & Login)
+- Real-time messaging
+- Online status indication
+- Typing and last seen indicators
+- Message delivery and read status (✔ = Delivered, ✔✔ = Read)
+- Contact management (Add & Search Users)
+- Group chat functionality
+  - Create groups
+  - Add or remove members (Admin only)
+  - Assign group admin privileges
+  - Update group name
+- Notifications and unread message count
+- Fully responsive UI
+- Profile management (update profile picture, username, name, and bio)
+
+## Installation & Setup
+
+### Prerequisites
+Make sure you have the following installed:
+- Node.js (latest LTS version recommended)
+- npm or yarn
+
+### Clone the Repository
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/muhammedsavadtp/chatapp_frontend.git
+cd chatapp_frontend
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Install Dependencies
+```bash
+npm install --legacy-peer-deps
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment Variables
+Create a `.env` file in the project root and add the following:
+```env
+PORT=5000
+MONGO_URI=mongodb://localhost:27017/chat-app
+JWT_SECRET=<your-secret-key>
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Run the Application
+```bash
+npm run dev  # For development mode
+# OR
+npm start    # To start the app
+```
 
-## Learn More
+## Usage
 
-To learn more about Next.js, take a look at the following resources:
+1. **Create an account** and log in.
+2. Click the **“+”** button on the left sidebar to **add a contact**.
+3. Create another account in a separate browser for the recipient.
+4. **Search for the user** and click **Add** (both users need to add each other).
+5. Start chatting in real-time.
+6. To **create a group**, click the **“+”** button → Select **Create Group** → Provide a group name → Select members → Click **Create**.
+7. To **update group settings**, open a group chat and click on the **group name** to:
+   - Update the **group name**
+   - **Add or remove members** (Admin only)
+   - **Assign group admin privileges** to a member
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Notes
+- If something is not working, **refresh the page** and try again.
+- This project is optimized for all devices (mobile, tablet, and desktop).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+<!-- ## License
+This project is open-source and available under the [MIT License](LICENSE). -->
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Contact
+For any issues or inquiries, feel free to reach out to **Muhammed Savad**.
