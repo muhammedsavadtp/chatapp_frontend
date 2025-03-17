@@ -1,5 +1,6 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -10,21 +11,19 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import { formatTime } from "@/lib/utils/formateDate";
 import socket, {
   onMessageReceived,
   onGroupMessageReceived,
 } from "@/lib/socket";
-import { updateChatLastMessage } from "@/lib/redux/slices/chatSlice";
+import { setChats, updateChatLastMessage } from "@/lib/redux/slices/chatSlice";
 import { toast } from "sonner";
+import { markGroupMessagesRead } from "@/lib/api/groupApi";
 
 interface ChatListProps {
-  onChatSelect: (chat: unknown) => void;
-  // onAddAction: (type: "add-contact" | "create-group") => void;
+  onChatSelect: (chat: any) => void;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function ChatList({ onChatSelect, onAddAction }: ChatListProps) {
+export function ChatList({ onChatSelect }: ChatListProps) {
   const dispatch = useDispatch();
   const { chats, selectedChat } = useSelector((state: RootState) => state.chat);
   const { profile } = useSelector((state: RootState) => state.user);
@@ -32,7 +31,7 @@ export function ChatList({ onChatSelect, onAddAction }: ChatListProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    const handleMessageReceived = (msg: unknown) => {
+    const handleMessageReceived = (msg: any) => {
       if (msg.sender._id !== profile?.id) {
         const chatId =
           msg.recipient === profile?.id ? msg.sender._id : msg.group;
@@ -41,7 +40,6 @@ export function ChatList({ onChatSelect, onAddAction }: ChatListProps) {
           updateChatLastMessage({ chatId, lastMessage: content, unread: true })
         );
 
-        // Show notification if not currently viewing this chat
         if (selectedChat?.id !== chatId) {
           if (
             typeof Notification !== "undefined" &&
@@ -52,7 +50,6 @@ export function ChatList({ onChatSelect, onAddAction }: ChatListProps) {
               icon: msg.sender.profilePicture || "/api/placeholder/40/40",
             });
           } else {
-            // Fallback: Show in-app toast notification
             toast(`New Message from ${msg.sender.name || "Unknown"}`);
           }
         }
@@ -62,15 +59,14 @@ export function ChatList({ onChatSelect, onAddAction }: ChatListProps) {
     onMessageReceived(handleMessageReceived);
     onGroupMessageReceived(handleMessageReceived);
 
-    // Request notification permission if supported
     if (
       typeof Notification !== "undefined" &&
       Notification.permission !== "granted" &&
       Notification.permission !== "denied"
     ) {
-      Notification.requestPermission().catch((err) => {
-        console.error("Notification permission request failed:", err);
-      });
+      Notification.requestPermission().catch((err) =>
+        console.error("Notification permission request failed:", err)
+      );
     }
 
     return () => {
@@ -79,16 +75,38 @@ export function ChatList({ onChatSelect, onAddAction }: ChatListProps) {
     };
   }, [dispatch, profile?.id, selectedChat]);
 
+  const handleMarkGroupMessagesRead = async (groupId: string) => {
+    try {
+      await markGroupMessagesRead(groupId);
+      const updatedChats = chats.map((chat) =>
+        chat.id === groupId ? { ...chat, unread: 0 } : chat
+      );
+      dispatch(setChats(updatedChats));
+    } catch (error) {
+      console.error("Error marking group messages as read:", error);
+      toast("Failed to mark group messages as read", {
+        description: error.message,
+      });
+    }
+  };
+
+  const handleChatSelect = (chat: any) => {
+    onChatSelect(chat);
+    if (chat.type === "group" && chat.unread > 0) {
+      handleMarkGroupMessagesRead(chat.id);
+    }
+  };
+
   const getFilteredChats = (type: string) => {
     const typeFiltered =
       type === "all" ? chats : chats.filter((chat) => chat.type === type);
-
     if (!searchQuery.trim()) return typeFiltered;
-
     return typeFiltered.filter(
       (chat) =>
         chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        chat.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+        (chat.lastMessage || "")
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase())
     );
   };
 
@@ -124,9 +142,12 @@ export function ChatList({ onChatSelect, onAddAction }: ChatListProps) {
             <TabsContent key={tab} value={tab}>
               <div className="space-y-2 p-2">
                 {filteredChats[tab].map((chat) => (
-                  <ChatItem key={chat.id} chat={chat} onSelect={onChatSelect} />
+                  <ChatItem
+                    key={chat.id}
+                    chat={chat}
+                    onSelect={handleChatSelect}
+                  />
                 ))}
-
                 {filteredChats[tab].length === 0 && (
                   <div className="text-center p-4 text-muted-foreground">
                     {searchQuery
@@ -146,8 +167,8 @@ export function ChatList({ onChatSelect, onAddAction }: ChatListProps) {
 }
 
 interface ChatItemProps {
-  chat: unknown;
-  onSelect: (chat: unknown) => void;
+  chat: any;
+  onSelect: (chat: any) => void;
 }
 
 function ChatItem({ chat, onSelect }: ChatItemProps) {
@@ -166,11 +187,17 @@ function ChatItem({ chat, onSelect }: ChatItemProps) {
         <div className="flex justify-between items-baseline">
           <span className="font-medium text-sm truncate">{chat.name}</span>
           <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
-            {formatTime(chat.lastSeen || chat.time)}
+            {chat.time ||
+              (chat.type === "personal" && chat.lastSeen
+                ? new Date(chat.lastSeen).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "")}
           </span>
         </div>
         <div className="text-sm text-muted-foreground truncate">
-          {chat.lastMessage}
+          {chat.lastMessage || "No messages yet"}
         </div>
         {chat.type === "group" && (
           <div className="text-xs text-muted-foreground">

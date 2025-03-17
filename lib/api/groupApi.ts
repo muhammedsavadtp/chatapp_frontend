@@ -27,6 +27,7 @@ export interface GroupMessage {
   fileUrl?: string;
   status: string;
   read: boolean;
+  readBy?: string[];
   timestamp: string;
   __v: number;
 }
@@ -122,5 +123,10 @@ export const addGroupAdmin = async (
   const response = await axiosInstance.post(`/group/${groupId}/admins`, {
     memberId,
   });
+  return response.data;
+} ;
+// function to mark group messages as read
+export const markGroupMessagesRead = async (groupId: string): Promise<{ message: string }> => {
+  const response = await axiosInstance.put(`/chat/group-messages/read/${groupId}`);
   return response.data;
 };

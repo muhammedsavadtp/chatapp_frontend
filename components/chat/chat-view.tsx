@@ -1,6 +1,7 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 "use client";
+
 import React, { useState, useRef, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/lib/redux/store";
@@ -10,6 +11,7 @@ import {
   markMessagesRead,
 } from "@/lib/redux/slices/chatSlice";
 import { getMessages, markMessagesAsRead, uploadFile } from "@/lib/api/chatApi";
+import { getGroupMessages } from "@/lib/api/groupApi";
 import socket, {
   emitSendMessage,
   emitSendGroupMessage,
@@ -50,27 +52,40 @@ export function ChatView() {
 
   useEffect(() => {
     if (selectedChat) {
-      if (selectedChat.type === "group") {
-        emitJoinGroup(selectedChat.id);
-        console.log(`Joined group room: ${selectedChat.id}`);
+      const chatId = selectedChat.id || selectedChat._id;
+      const chatType =
+        selectedChat.type || (selectedChat.members ? "group" : "personal");
+
+      if (!chatId || !chatType) {
+        console.error("Invalid selectedChat:", selectedChat);
+        return;
+      }
+
+      if (chatType === "group") {
+        emitJoinGroup(chatId);
+        console.log(`Joined group room: ${chatId}`);
       }
 
       const fetchMessages = async () => {
         try {
-          const data = await getMessages(selectedChat.id);
+          const data =
+            chatType === "group"
+              ? await getGroupMessages(chatId)
+              : await getMessages(chatId);
           const fetchedMessages = Array.isArray(data)
             ? data
             : data.messages || [];
           dispatch(setMessages(fetchedMessages));
+
           if (
-            selectedChat.type === "personal" &&
+            chatType === "personal" &&
             fetchedMessages.some((msg) => !msg.read)
           ) {
-            await markMessagesAsRead(selectedChat.id);
-            dispatch(markMessagesRead(selectedChat.id));
+            await markMessagesAsRead(chatId);
+            dispatch(markMessagesRead(chatId));
           }
         } catch (error) {
-          console.error("Error fetching messages:", error);
+          console.error(`Error fetching ${chatType} messages:`, error);
           dispatch(setMessages([]));
         }
       };
@@ -78,22 +93,20 @@ export function ChatView() {
 
       const messageListener = (msg) => {
         if (
-          selectedChat.type === "personal" &&
-          ((msg.recipient === profile?.id &&
-            msg.sender._id === selectedChat.id) ||
-            (msg.sender._id === profile?.id &&
-              msg.recipient === selectedChat.id))
+          chatType === "personal" &&
+          ((msg.recipient === profile?.id && msg.sender._id === chatId) ||
+            (msg.sender._id === profile?.id && msg.recipient === chatId))
         ) {
           dispatch(addMessage(msg));
           if (!msg.read) {
-            markMessagesAsRead(selectedChat.id);
-            dispatch(markMessagesRead(selectedChat.id));
+            markMessagesAsRead(chatId);
+            dispatch(markMessagesRead(chatId));
           }
         }
       };
 
       const groupMessageListener = (msg) => {
-        if (selectedChat.type === "group" && msg.group === selectedChat.id) {
+        if (chatType === "group" && msg.group === chatId) {
           dispatch(addMessage(msg));
         }
       };
@@ -102,10 +115,7 @@ export function ChatView() {
         recipientId,
         messages: updatedMessages,
       }) => {
-        if (
-          selectedChat.type === "personal" &&
-          recipientId === selectedChat.id
-        ) {
+        if (chatType === "personal" && recipientId === chatId) {
           dispatch(setMessages(updatedMessages));
         }
       };
@@ -119,29 +129,23 @@ export function ChatView() {
           const senderName =
             selectedChat.members?.find((m) => m._id === senderId)?.name ||
             "Unknown";
-          if (selectedChat.type === "group" && groupId === selectedChat.id) {
+          if (chatType === "group" && groupId === chatId) {
             setTypingUsers((prev) => {
               if (!prev.some((user) => user.id === senderId)) {
                 return [...prev, { id: senderId, name: senderName }];
               }
               return prev;
             });
-          } else if (
-            selectedChat.type === "personal" &&
-            senderId === selectedChat.id
-          ) {
+          } else if (chatType === "personal" && senderId === chatId) {
             setTypingUsers([{ id: senderId, name: selectedChat.name }]);
           }
         }
       });
 
       onUserStoppedTyping(({ senderId, groupId }) => {
-        if (selectedChat.type === "group" && groupId === selectedChat.id) {
+        if (chatType === "group" && groupId === chatId) {
           setTypingUsers((prev) => prev.filter((user) => user.id !== senderId));
-        } else if (
-          selectedChat.type === "personal" &&
-          senderId === selectedChat.id
-        ) {
+        } else if (chatType === "personal" && senderId === chatId) {
           setTypingUsers([]);
         }
       });
@@ -163,14 +167,17 @@ export function ChatView() {
   const handleSendMessage = () => {
     if (!newMessage.trim() || !selectedChat || !profile) return;
 
+    const chatId = selectedChat.id || selectedChat._id;
+    const chatType =
+      selectedChat.type || (selectedChat.members ? "group" : "personal");
+
     const messagePayload = {
-      [selectedChat.type === "group" ? "groupId" : "recipientId"]:
-        selectedChat.id,
+      [chatType === "group" ? "groupId" : "recipientId"]: chatId,
       content: newMessage,
     };
 
     try {
-      if (selectedChat.type === "group") {
+      if (chatType === "group") {
         emitSendGroupMessage(messagePayload);
       } else {
         emitSendMessage(messagePayload);
@@ -179,8 +186,7 @@ export function ChatView() {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
         emitStopTyping({
-          [selectedChat.type === "group" ? "groupId" : "recipientId"]:
-            selectedChat.id,
+          [chatType === "group" ? "groupId" : "recipientId"]: chatId,
         });
       }
     } catch (error) {
@@ -190,15 +196,14 @@ export function ChatView() {
 
   const handleTyping = () => {
     if (!selectedChat) return;
-    emitTyping({
-      [selectedChat.type === "group" ? "groupId" : "recipientId"]:
-        selectedChat.id,
-    });
+    const chatId = selectedChat.id || selectedChat._id;
+    const chatType =
+      selectedChat.type || (selectedChat.members ? "group" : "personal");
+    emitTyping({ [chatType === "group" ? "groupId" : "recipientId"]: chatId });
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       emitStopTyping({
-        [selectedChat.type === "group" ? "groupId" : "recipientId"]:
-          selectedChat.id,
+        [chatType === "group" ? "groupId" : "recipientId"]: chatId,
       });
     }, 2000);
   };
@@ -207,15 +212,18 @@ export function ChatView() {
     const file = e.target.files?.[0];
     if (!file || !selectedChat || !profile) return;
 
+    const chatId = selectedChat.id || selectedChat._id;
+    const chatType =
+      selectedChat.type || (selectedChat.members ? "group" : "personal");
+
     try {
       const { fileUrl } = await uploadFile(file);
       const messagePayload = {
-        [selectedChat.type === "group" ? "groupId" : "recipientId"]:
-          selectedChat.id,
+        [chatType === "group" ? "groupId" : "recipientId"]: chatId,
         content: "",
         fileUrl,
       };
-      if (selectedChat.type === "group") {
+      if (chatType === "group") {
         emitSendGroupMessage(messagePayload);
       } else {
         emitSendMessage(messagePayload);
@@ -227,7 +235,7 @@ export function ChatView() {
 
   if (!selectedChat) return null;
 
-  const groupedMessages: { [key: string]: unknown[] } = {};
+  const groupedMessages: { [key: string]: any[] } = {};
   if (Array.isArray(messages)) {
     messages.forEach((message) => {
       const date = format(new Date(message.timestamp), "yyyy-MM-dd");
@@ -235,6 +243,9 @@ export function ChatView() {
       groupedMessages[date].push(message);
     });
   }
+
+  const chatType =
+    selectedChat.type || (selectedChat.members ? "group" : "personal");
 
   return (
     <div className="flex flex-col h-[90vh]">
@@ -271,7 +282,7 @@ export function ChatView() {
                       </Avatar>
                     )}
                     <div className="max-w-[75%] flex flex-col">
-                      {selectedChat.type === "group" && !isCurrentUser && (
+                      {chatType === "group" && !isCurrentUser && (
                         <div className="text-xs text-muted-foreground">
                           {senderName}
                         </div>
@@ -302,7 +313,7 @@ export function ChatView() {
                         )}
                       >
                         {format(new Date(message.timestamp), "h:mm a")}
-                        {isCurrentUser && (
+                        {isCurrentUser && chatType === "personal" && (
                           <span className="ml-1">
                             {message.status === "Read" ? "✓✓" : "✓"}
                           </span>
@@ -344,7 +355,7 @@ export function ChatView() {
         )}
         {typingUsers.length > 0 && (
           <div className="text-sm text-muted-foreground italic">
-            {selectedChat.type === "group"
+            {chatType === "group"
               ? `${typingUsers.map((user) => user.name).join(", ")} ${
                   typingUsers.length > 1 ? "are" : "is"
                 } typing...`

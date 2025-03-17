@@ -1,6 +1,6 @@
+
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -9,16 +9,17 @@ import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,
   MoreVertical,
-  UserPlus,
+  // UserPlus,
   Shield,
   Trash2,
   X,
   Save,
   Users,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/lib/redux/store";
-// import { cn } from "@/lib/utils";
 import { onUserStatusUpdate } from "@/lib/socket";
 import { setSelectedChat } from "@/lib/redux/slices/chatSlice";
 import {
@@ -27,7 +28,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  // DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -51,8 +51,16 @@ import {
   removeGroupMember,
   addGroupAdmin,
 } from "@/lib/api/groupApi";
+import { getContacts } from "@/lib/api/userApi";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 interface ChatHeaderProps {
   onToggleSidebar: () => void;
@@ -60,11 +68,16 @@ interface ChatHeaderProps {
   isDesktop: boolean;
 }
 
-export function ChatHeader({
-  onToggleSidebar,
-  // showSidebar,
-  isDesktop,
-}: ChatHeaderProps) {
+interface UserContact {
+  _id: string;
+  name: string;
+  username: string;
+  profilePicture?: string;
+  status?: string;
+  lastSeen?: string;
+}
+
+export function ChatHeader({ onToggleSidebar, isDesktop }: ChatHeaderProps) {
   const dispatch = useDispatch();
   const { selectedChat } = useSelector((state: RootState) => state.chat);
   const { profile } = useSelector((state: RootState) => state.user);
@@ -74,9 +87,12 @@ export function ChatHeader({
     useState(false);
   const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
   const [groupName, setGroupName] = useState(selectedChat?.name || "");
-  const [newMemberId, setNewMemberId] = useState("");
-  const [newAdminId, setNewAdminId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [adminSearchQuery, setAdminSearchQuery] = useState("");
+  const [isAdminPopoverOpen, setIsAdminPopoverOpen] = useState(false);
+  const [memberSearchQuery, setMemberSearchQuery] = useState("");
+  const [isMemberPopoverOpen, setIsMemberPopoverOpen] = useState(false);
+  const [contacts, setContacts] = useState<UserContact[]>([]);
 
   useEffect(() => {
     if (selectedChat?.type === "personal") {
@@ -86,51 +102,84 @@ export function ChatHeader({
         }
       });
     }
-    setGroupName(selectedChat?.name || ""); // Sync group name on change
+    setGroupName(selectedChat?.name || "");
   }, [selectedChat, dispatch]);
+
+  useEffect(() => {
+    if (isAdmin && isGroupDialogOpen) {
+      fetchContacts();
+    }
+  }, [isGroupDialogOpen]);
+
+  const fetchContacts = async () => {
+    try {
+      const userContacts = await getContacts();
+      setContacts(userContacts);
+    } catch (error) {
+      toast.error("Failed to fetch contacts", { description: error.message });
+    }
+  };
+
+  const normalizeGroup = (group: any) => ({
+    id: group._id,
+    type: "group",
+    name: group.name,
+    avatar: group.avatar || "/api/placeholder/40/40",
+    members: group.members.map((m: any) => ({
+      _id: m._id,
+      name: m.name,
+      username: m.username || m.name,
+      profilePicture: m.profilePicture || "/api/placeholder/40/40",
+      status: m.status || "offline",
+      lastSeen: m.lastSeen,
+    })),
+    admins: group.admins.map((admin: any) =>
+      typeof admin === "string" ? admin : admin._id
+    ),
+    createdBy: group.createdBy,
+    lastMessage:
+      typeof group.lastMessage === "string"
+        ? group.lastMessage
+        : group.lastMessage?._id || "",
+    time:
+      group.time ||
+      new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    unread: group.unread || 0,
+  });
 
   const handleUpdateGroupName = async () => {
     if (!groupName.trim()) {
-      toast({ title: "Group name cannot be empty" });
+      toast.info("Group name cannot be empty");
       return;
     }
-
     setIsLoading(true);
     try {
+      console.log("Before update:", selectedChat);
       const updatedGroup = await updateGroupName(selectedChat.id, groupName);
-      dispatch(setSelectedChat(updatedGroup));
-      toast({ title: "Group name updated successfully" });
+      const normalizedGroup = normalizeGroup(updatedGroup);
+      console.log("After update:", normalizedGroup);
+      dispatch(setSelectedChat(normalizedGroup));
+      toast.success("Group name updated successfully");
     } catch (error) {
-      toast({
-        title: "Failed to update group name",
-        description: error.message || "An unknown error occurred",
-        variant: "destructive",
-      });
+      toast.error("Failed to update group name", { description: error.message });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAddMember = async () => {
-    if (!newMemberId.trim()) {
-      toast({ title: "Member ID cannot be empty" });
-      return;
-    }
-
+  const handleAddMember = async (memberId: string) => {
     setIsLoading(true);
     try {
-      const updatedGroup = await addGroupMembers(selectedChat.id, [
-        newMemberId,
-      ]);
-      dispatch(setSelectedChat(updatedGroup));
-      setNewMemberId("");
-      toast({ title: "Member added successfully" });
+      // console.log("Before add member:", selectedChat);
+      const updatedGroup = await addGroupMembers(selectedChat.id, [memberId]);
+      const normalizedGroup = normalizeGroup(updatedGroup);
+      // console.log("After add member:", normalizedGroup);
+      dispatch(setSelectedChat(normalizedGroup));
+      setMemberSearchQuery("");
+      setIsMemberPopoverOpen(false);
+      toast.success("Member added successfully");
     } catch (error) {
-      toast({
-        title: "Failed to add member",
-        description: error.message || "An unknown error occurred",
-        variant: "destructive",
-      });
+      toast.error("Failed to add member", { description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -143,21 +192,19 @@ export function ChatHeader({
 
   const handleRemoveMember = async () => {
     if (!memberToRemove) return;
-
     setIsLoading(true);
     try {
+      console.log("Before remove member:", selectedChat);
       const updatedGroup = await removeGroupMember(
         selectedChat.id,
         memberToRemove
       );
-      dispatch(setSelectedChat(updatedGroup));
-      toast({ title: "Member removed successfully" });
+      const normalizedGroup = normalizeGroup(updatedGroup);
+      console.log("After remove member:", normalizedGroup);
+      dispatch(setSelectedChat(normalizedGroup));
+      toast.success("Member removed successfully");
     } catch (error) {
-      toast({
-        title: "Failed to remove member",
-        description: error.message || "An unknown error occurred",
-        variant: "destructive",
-      });
+      toast.error("Failed to remove member", { description: error.message });
     } finally {
       setIsLoading(false);
       setIsRemoveMemberDialogOpen(false);
@@ -165,24 +212,19 @@ export function ChatHeader({
     }
   };
 
-  const handleAddAdmin = async () => {
-    if (!newAdminId.trim()) {
-      toast({ title: "Admin ID cannot be empty" });
-      return;
-    }
-
+  const handleAddAdmin = async (memberId: string) => {
     setIsLoading(true);
     try {
-      const updatedGroup = await addGroupAdmin(selectedChat.id, newAdminId);
-      dispatch(setSelectedChat(updatedGroup));
-      setNewAdminId("");
-      toast({ title: "Admin privileges granted successfully" });
+      console.log("Before add admin:", selectedChat);
+      const updatedGroup = await addGroupAdmin(selectedChat.id, memberId);
+      const normalizedGroup = normalizeGroup(updatedGroup);
+      console.log("After add admin:", normalizedGroup);
+      dispatch(setSelectedChat(normalizedGroup));
+      setAdminSearchQuery("");
+      setIsAdminPopoverOpen(false);
+      toast.success("Admin privileges granted successfully");
     } catch (error) {
-      toast({
-        title: "Failed to add admin",
-        description: error.message || "An unknown error occurred",
-        variant: "destructive",
-      });
+      toast.error("Failed to add admin", { description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -191,18 +233,14 @@ export function ChatHeader({
   const handleDeleteGroup = async () => {
     setIsLoading(true);
     try {
+      console.log("Before delete group:", selectedChat);
       await deleteGroup(selectedChat.id);
       dispatch(setSelectedChat(null));
       setIsGroupDialogOpen(false);
       setIsDeleteDialogOpen(false);
-      toast({ title: "Group deleted successfully" });
+      toast.success("Group deleted successfully");
     } catch (error) {
-      toast({
-        title: "Failed to delete group",
-        description: error.message || "An unknown error occurred",
-        variant: "destructive",
-      });
-      setIsDeleteDialogOpen(false);
+      toast.error("Failed to delete group", { description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -214,6 +252,21 @@ export function ChatHeader({
     selectedChat.type === "group" && selectedChat.admins?.includes(profile?.id);
   const isCreator =
     selectedChat.type === "group" && selectedChat.createdBy === profile?.id;
+
+  // All group members for admin selection (not just non-admins)
+  const groupMembers =
+    selectedChat.type === "group" ? selectedChat.members : [];
+  const filteredGroupMembers = groupMembers.filter((member: any) =>
+    member.name.toLowerCase().includes(adminSearchQuery.toLowerCase())
+  );
+
+  // Contacts not already in the group for member addition
+  const availableContacts = contacts.filter(
+    (contact) => !selectedChat.members.some((m: any) => m._id === contact._id)
+  );
+  const filteredContacts = availableContacts.filter((contact) =>
+    contact.name.toLowerCase().includes(memberSearchQuery.toLowerCase())
+  );
 
   return (
     <div className="flex items-center justify-between p-4 border-b">
@@ -294,7 +347,7 @@ export function ChatHeader({
                             </span>
                             <span>
                               {selectedChat.members.find(
-                                (m) => m._id === selectedChat.createdBy
+                                (m: any) => m._id === selectedChat.createdBy
                               )?.name || "Unknown"}
                             </span>
                           </div>
@@ -321,22 +374,76 @@ export function ChatHeader({
                     {isAdmin && (
                       <div className="space-y-2">
                         <Label htmlFor="add-member">Add New Member</Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            id="add-member"
-                            value={newMemberId}
-                            onChange={(e) => setNewMemberId(e.target.value)}
-                            disabled={isLoading}
-                            placeholder="Enter user ID"
-                          />
-                          <Button
-                            onClick={handleAddMember}
-                            disabled={isLoading}
-                            size="icon"
-                          >
-                            <UserPlus className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <Popover
+                          open={isMemberPopoverOpen}
+                          onOpenChange={setIsMemberPopoverOpen}
+                        >
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-between"
+                              disabled={
+                                isLoading || availableContacts.length === 0
+                              }
+                            >
+                              {memberSearchQuery || "Select a contact"}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[300px] p-0">
+                            <div className="bg-popover text-popover-foreground flex flex-col overflow-hidden rounded-md">
+                              <div className="flex items-center border-b px-3">
+                                <Input
+                                  className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 border-0"
+                                  placeholder="Search contacts..."
+                                  value={memberSearchQuery}
+                                  onChange={(e) =>
+                                    setMemberSearchQuery(e.target.value)
+                                  }
+                                  disabled={isLoading}
+                                />
+                              </div>
+                              <ScrollArea className="h-[200px] overflow-auto">
+                                {filteredContacts.length === 0 ? (
+                                  <div className="text-center p-4 text-muted-foreground text-sm">
+                                    {memberSearchQuery
+                                      ? "No matching contacts found"
+                                      : "All contacts are in the group"}
+                                  </div>
+                                ) : (
+                                  filteredContacts.map((contact) => (
+                                    <div
+                                      key={contact._id}
+                                      className="relative flex cursor-pointer select-none items-center justify-between rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                                      onClick={() =>
+                                        handleAddMember(contact._id)
+                                      }
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Avatar className="h-6 w-6">
+                                          <AvatarImage
+                                            src={contact.profilePicture}
+                                            alt={contact.name}
+                                          />
+                                          <AvatarFallback>
+                                            {contact.name
+                                              .substring(0, 2)
+                                              .toUpperCase()}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span>{contact.name}</span>
+                                      </div>
+                                      <Check className="h-4 w-4 opacity-0" />
+                                    </div>
+                                  ))
+                                )}
+                              </ScrollArea>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                        <p className="text-xs text-muted-foreground">
+                          Select a contact from your list to add to the group
+                        </p>
                       </div>
                     )}
 
@@ -346,7 +453,7 @@ export function ChatHeader({
                         Members List
                       </Label>
                       <div className="max-h-64 overflow-y-auto space-y-2">
-                        {selectedChat.members.map((member) => (
+                        {selectedChat.members.map((member: any) => (
                           <div
                             key={member._id}
                             className="flex justify-between items-center p-2 bg-secondary/20 rounded-md"
@@ -397,25 +504,95 @@ export function ChatHeader({
                     {isAdmin && (
                       <div className="space-y-2">
                         <Label htmlFor="add-admin">Add New Admin</Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            id="add-admin"
-                            value={newAdminId}
-                            onChange={(e) => setNewAdminId(e.target.value)}
-                            disabled={isLoading}
-                            placeholder="Enter member ID"
-                          />
-                          <Button
-                            onClick={handleAddAdmin}
-                            disabled={isLoading}
-                            size="icon"
-                          >
-                            <Shield className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <Popover
+                          open={isAdminPopoverOpen}
+                          onOpenChange={setIsAdminPopoverOpen}
+                        >
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-between"
+                              disabled={isLoading || groupMembers.length === 0}
+                            >
+                              {adminSearchQuery || "Select a group member"}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[300px] p-0">
+                            <div className="bg-popover text-popover-foreground flex flex-col overflow-hidden rounded-md">
+                              <div className="flex items-center border-b px-3">
+                                <Input
+                                  className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 border-0"
+                                  placeholder="Search members..."
+                                  value={adminSearchQuery}
+                                  onChange={(e) =>
+                                    setAdminSearchQuery(e.target.value)
+                                  }
+                                  disabled={isLoading}
+                                />
+                              </div>
+                              <ScrollArea className="h-[200px] overflow-auto">
+                                {filteredGroupMembers.length === 0 ? (
+                                  <div className="text-center p-4 text-muted-foreground text-sm">
+                                    {adminSearchQuery
+                                      ? "No matching members found"
+                                      : "No members available"}
+                                  </div>
+                                ) : (
+                                  filteredGroupMembers.map((member: any) => {
+                                    const isAlreadyAdmin =
+                                      selectedChat.admins?.includes(member._id);
+                                    return (
+                                      <div
+                                        key={member._id}
+                                        className={cn(
+                                          "relative flex cursor-pointer select-none items-center justify-between rounded-sm px-2 py-1.5 text-sm outline-none",
+                                          isAlreadyAdmin
+                                            ? "opacity-50 cursor-not-allowed"
+                                            : "hover:bg-accent hover:text-accent-foreground",
+                                          "data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                                        )}
+                                        onClick={() =>
+                                          !isAlreadyAdmin &&
+                                          handleAddAdmin(member._id)
+                                        }
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <Avatar className="h-6 w-6">
+                                            <AvatarImage
+                                              src={member.profilePicture}
+                                              alt={member.name}
+                                            />
+                                            <AvatarFallback>
+                                              {member.name
+                                                .substring(0, 2)
+                                                .toUpperCase()}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                          <span>{member.name}</span>
+                                          {isAlreadyAdmin && (
+                                            <Badge
+                                              variant="outline"
+                                              className="ml-2"
+                                            >
+                                              <Shield className="h-3 w-3 mr-1" />
+                                              Admin
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        {!isAlreadyAdmin && (
+                                          <Check className="h-4 w-4 opacity-0" />
+                                        )}
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </ScrollArea>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                         <p className="text-xs text-muted-foreground">
-                          Only members already in the group can be promoted to
-                          admin
+                          Select a group member to promote to admin
                         </p>
                       </div>
                     )}
@@ -427,10 +604,10 @@ export function ChatHeader({
                       </Label>
                       <div className="max-h-64 overflow-y-auto space-y-2">
                         {selectedChat.members
-                          .filter((member) =>
+                          .filter((member: any) =>
                             selectedChat.admins?.includes(member._id)
                           )
-                          .map((member) => (
+                          .map((member: any) => (
                             <div
                               key={member._id}
                               className="flex justify-between items-center p-2 bg-secondary/20 rounded-md"
@@ -465,14 +642,17 @@ export function ChatHeader({
             <p className="text-sm text-muted-foreground">
               {selectedChat.status === "online"
                 ? "Online"
-                : `Last seen: ${new Date(
+                : selectedChat.lastSeen
+                ? `Last seen: ${new Date(
                     selectedChat.lastSeen
-                  ).toLocaleString()}`}
+                  ).toLocaleString()}`
+                : "No activity yet"}
             </p>
           )}
           {selectedChat.type === "group" && (
             <p className="text-sm text-muted-foreground">
               {selectedChat.members.length} members
+              {selectedChat.time ? ` • Last message: ${selectedChat.time}` : ""}
             </p>
           )}
         </div>
@@ -481,7 +661,6 @@ export function ChatHeader({
         <MoreVertical className="h-5 w-5" />
       </Button>
 
-      {/* Remove Member Confirmation Dialog */}
       <AlertDialog
         open={isRemoveMemberDialogOpen}
         onOpenChange={setIsRemoveMemberDialogOpen}
@@ -507,7 +686,6 @@ export function ChatHeader({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete Group Confirmation Dialog */}
       <AlertDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
