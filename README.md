@@ -40,9 +40,9 @@ npm install --legacy-peer-deps
 ### Environment Variables
 Create a `.env` file in the project root and add the following:
 ```env
-PORT=5000
-MONGO_URI=mongodb://localhost:27017/chat-app
-JWT_SECRET=<your-secret-key>
+NODE_ENV="development"
+NEXT_PUBLIC_API_URL=http://localhost:5000 
+
 ```
 
 ### Run the Application
