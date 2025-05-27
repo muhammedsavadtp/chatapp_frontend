@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
@@ -109,7 +110,7 @@ export function ChatHeader({ onToggleSidebar, isDesktop }: ChatHeaderProps) {
     if (isAdmin && isGroupDialogOpen) {
       fetchContacts();
     }
-  }, [isGroupDialogOpen]);
+  }, [isGroupDialogOpen,isAdmin]);
 
   const fetchContacts = async () => {
     try {
@@ -256,12 +257,15 @@ export function ChatHeader({ onToggleSidebar, isDesktop }: ChatHeaderProps) {
   // All group members for admin selection (not just non-admins)
   const groupMembers =
     selectedChat.type === "group" ? selectedChat.members : [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const filteredGroupMembers = groupMembers.filter((member: any) =>
     member.name.toLowerCase().includes(adminSearchQuery.toLowerCase())
   );
 
   // Contacts not already in the group for member addition
   const availableContacts = contacts.filter(
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (contact) => !selectedChat.members.some((m: any) => m._id === contact._id)
   );
   const filteredContacts = availableContacts.filter((contact) =>

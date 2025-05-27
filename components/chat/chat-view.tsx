@@ -235,7 +235,7 @@ export function ChatView() {
 
   if (!selectedChat) return null;
 
-  const groupedMessages: { [key: string]: any[] } = {};
+  const groupedMessages: { [key: string]: unknown[] } = {};
   if (Array.isArray(messages)) {
     messages.forEach((message) => {
       const date = format(new Date(message.timestamp), "yyyy-MM-dd");
