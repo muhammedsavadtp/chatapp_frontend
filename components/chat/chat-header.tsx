@@ -110,7 +110,8 @@ export function ChatHeader({ onToggleSidebar, isDesktop }: ChatHeaderProps) {
     if (isAdmin && isGroupDialogOpen) {
       fetchContacts();
     }
-  }, [isGroupDialogOpen,isAdmin]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGroupDialogOpen]);
 
   const fetchContacts = async () => {
     try {
